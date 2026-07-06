@@ -1,3 +1,4 @@
+import { proxyPathPrefixOf, withProxyPrefixedPath } from "../proxyPathPrefix.ts";
 import {
   AuthAccessTokenType,
   type AuthClientPresentationMetadata,
@@ -185,6 +186,9 @@ export const resolveRemoteWebSocketConnectionUrl = Effect.fn(
   const url = new URL(input.wsBaseUrl);
   if (url.pathname === "" || url.pathname === "/") {
     url.pathname = "/ws";
+  } else if (proxyPathPrefixOf(url.pathname) === url.pathname.replace(/\/$/, "")) {
+    // [t3code-vscode patch] base is exactly a /proxy/<port> prefix - append /ws behind it
+    withProxyPrefixedPath(url, "/ws");
   }
   url.searchParams.set("wsTicket", issued.ticket);
   return url.toString();
@@ -208,6 +212,9 @@ export const resolveRemoteDpopWebSocketConnectionUrl = Effect.fn(
   const url = new URL(input.wsBaseUrl);
   if (url.pathname === "" || url.pathname === "/") {
     url.pathname = "/ws";
+  } else if (proxyPathPrefixOf(url.pathname) === url.pathname.replace(/\/$/, "")) {
+    // [t3code-vscode patch] base is exactly a /proxy/<port> prefix - append /ws behind it
+    withProxyPrefixedPath(url, "/ws");
   }
   url.searchParams.set("wsTicket", issued.ticket);
   return url.toString();

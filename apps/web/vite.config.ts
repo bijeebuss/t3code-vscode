@@ -89,6 +89,9 @@ const devProxyTarget = resolveDevProxyTarget(configuredWsUrl);
 
 export default defineConfig(() => {
   return {
+    // [t3code-vscode patch] relative asset URLs so the app works when served
+    // behind a path-based port proxy (resolved via the injected <base> tag)
+    base: "./",
     plugins: [
       tanstackRouter(),
       react(),

@@ -1,0 +1,81 @@
+{
+  "name": "t3code-vscode",
+  "displayName": "T3 Code",
+  "description": "Run T3 Code (pingdotgg/t3code) — a GUI for coding agents (Claude Code, Codex, Cursor, OpenCode) — inside VS Code.",
+  "version": "0.2.1",
+  "publisher": "t3code-community",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"  
+  },
+  "categories": [
+    "AI",
+    "Other"
+  ],
+  "activationEvents": [],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "t3code.open",
+        "title": "T3 Code: Open"
+      },
+      {
+        "command": "t3code.openInBrowser",
+        "title": "T3 Code: Open in External Browser"
+      },
+      {
+        "command": "t3code.restart",
+        "title": "T3 Code: Restart Server"
+      },
+      {
+        "command": "t3code.stop",
+        "title": "T3 Code: Stop Server"
+      },
+      {
+        "command": "t3code.showLogs",
+        "title": "T3 Code: Show Server Logs"
+      }
+    ],
+    "configuration": {
+      "title": "T3 Code",
+      "properties": {
+        "t3code.command": {
+          "type": "string",
+          "default": "",
+          "description": "Custom command to launch the T3 Code server (e.g. \"t3\" or \"npx -y t3@latest\"). Leave empty (recommended) to use the extension-managed install, which includes a web client patched to work behind path-based port proxies (code-server/Coder)."
+        },
+        "t3code.port": {
+          "type": "number",
+          "default": 3773,
+          "description": "Port for the T3 Code server. A fixed port keeps port-forwarding stable; 0 lets t3 pick a free port."
+        },
+        "t3code.accessMode": {
+          "type": "string",
+          "enum": ["auto", "localhost"],
+          "default": "auto",
+          "enumDescriptions": [
+            "Route through VS Code's port forwarding (asExternalUri). Falls back to guidance if the environment uses a path-based proxy that breaks the t3 UI.",
+            "Point the panel directly at http://localhost:<port>. Use when you forward the port to your local machine yourself (e.g. `coder port-forward` or `ssh -L`)."
+          ],
+          "description": "How the T3 Code panel reaches the server."
+        },
+        "t3code.stopServerOnExit": {
+          "type": "boolean",
+          "default": true,
+          "description": "Stop the T3 Code server when VS Code (or the extension) shuts down."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -w -p ./",
+    "package": "npx --yes @vscode/vsce package --allow-missing-repository"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}

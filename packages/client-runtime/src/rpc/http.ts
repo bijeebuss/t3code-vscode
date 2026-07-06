@@ -9,6 +9,8 @@ import {
   type EnvironmentScopeRequiredError,
 } from "@t3tools/contracts";
 import { httpHeaderRedactionLayer } from "@t3tools/shared/httpObservability";
+
+import { withProxyPrefixedPath } from "../proxyPathPrefix.ts";
 import * as Data from "effect/Data";
 import * as Duration from "effect/Duration";
 import * as Effect from "effect/Effect";
@@ -88,7 +90,8 @@ export const remoteHttpClientLayer = (
 
 const remoteApiBaseUrl = (httpBaseUrl: string): string => {
   const url = new URL(httpBaseUrl);
-  url.pathname = "/";
+  // [t3code-vscode patch] keep a /proxy/<port> path prefix if present
+  withProxyPrefixedPath(url, "/");
   url.search = "";
   url.hash = "";
   return url.toString();

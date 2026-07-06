@@ -1,9 +1,11 @@
+import { withProxyPrefixedPath } from "../../lib/proxyPathPrefix.ts";
 import { buildHostedPairingUrl } from "../../hostedPairing";
 import { setPairingTokenOnUrl } from "../../pairingUrl";
 
 export function resolveDesktopPairingUrl(endpointUrl: string, credential: string): string {
   const url = new URL(endpointUrl);
-  url.pathname = "/pair";
+  // [t3code-vscode patch] keep a /proxy/<port> path prefix if present
+  withProxyPrefixedPath(url, "/pair");
   return setPairingTokenOnUrl(url, credential).toString();
 }
 

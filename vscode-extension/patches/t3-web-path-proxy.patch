@@ -1,0 +1,266 @@
+diff --git a/apps/web/index.html b/apps/web/index.html
+index dadef17d3..06569ebc8 100644
+--- a/apps/web/index.html
++++ b/apps/web/index.html
+@@ -2,6 +2,19 @@
+ <html lang="en">
+   <head>
+     <meta charset="UTF-8" />
++    <script>
++      // [t3code-vscode patch] when served behind a path-based port proxy
++      // (code-server/Coder /proxy/<port>/), anchor relative URLs to the
++      // proxy prefix so assets resolve on any route.
++      (() => {
++        const match = window.location.pathname.match(/^(.*\/proxy\/\d+)(?:\/|$)/);
++        if (match) {
++          const base = document.createElement("base");
++          base.href = window.location.origin + match[1] + "/";
++          document.head.prepend(base);
++        }
++      })();
++    </script>
+     <meta
+       name="viewport"
+       content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+@@ -9,8 +22,8 @@
+     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+     <meta name="theme-color" content="#161616" media="(prefers-color-scheme: dark)" />
+     <meta name="theme-color" content="#161616" />
+-    <link rel="icon" href="/favicon.ico" sizes="48x48" />
+-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
++    <link rel="icon" href="./favicon.ico" sizes="48x48" />
++    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+     <script>
+       (() => {
+         const LIGHT_BACKGROUND = "#ffffff";
+diff --git a/apps/web/src/components/settings/pairingUrls.ts b/apps/web/src/components/settings/pairingUrls.ts
+index 891fe04ad..59f6b1d1c 100644
+--- a/apps/web/src/components/settings/pairingUrls.ts
++++ b/apps/web/src/components/settings/pairingUrls.ts
+@@ -1,9 +1,11 @@
++import { withProxyPrefixedPath } from "../../lib/proxyPathPrefix.ts";
+ import { buildHostedPairingUrl } from "../../hostedPairing";
+ import { setPairingTokenOnUrl } from "../../pairingUrl";
+ 
+ export function resolveDesktopPairingUrl(endpointUrl: string, credential: string): string {
+   const url = new URL(endpointUrl);
+-  url.pathname = "/pair";
++  // [t3code-vscode patch] keep a /proxy/<port> path prefix if present
++  withProxyPrefixedPath(url, "/pair");
+   return setPairingTokenOnUrl(url, credential).toString();
+ }
+ 
+diff --git a/apps/web/src/environments/primary/target.ts b/apps/web/src/environments/primary/target.ts
+index cc002419f..0454cc367 100644
+--- a/apps/web/src/environments/primary/target.ts
++++ b/apps/web/src/environments/primary/target.ts
+@@ -1,6 +1,8 @@
+ import { PRIMARY_LOCAL_ENVIRONMENT_ID, type DesktopEnvironmentBootstrap } from "@t3tools/contracts";
+ import * as Schema from "effect/Schema";
+ 
++import { currentProxyPathPrefix, withProxyPrefixedPath } from "../../lib/proxyPathPrefix.ts";
++
+ const PrimaryEnvironmentTargetSource = Schema.Literals([
+   "configured",
+   "window-origin",
+@@ -211,7 +213,9 @@ function resolveConfiguredPrimaryTarget(): PrimaryEnvironmentTarget | null {
+ 
+ function resolveWindowOriginPrimaryTarget(): PrimaryEnvironmentTarget {
+   const url = parseTargetUrl({
+-    rawValue: window.location.origin,
++    // [t3code-vscode patch] behind a path-based port proxy the server lives
++    // under a /proxy/<port> prefix, not at the origin root
++    rawValue: window.location.origin + currentProxyPathPrefix(),
+     source: "window-origin",
+     urlKind: "http-base-url",
+   });
+@@ -278,7 +282,8 @@ export function resolvePrimaryEnvironmentHttpUrl(
+     source: primaryTarget.source,
+     urlKind: "http-base-url",
+   });
+-  url.pathname = pathname;
++  // [t3code-vscode patch] keep a /proxy/<port> path prefix if present
++  withProxyPrefixedPath(url, pathname);
+   if (searchParams) {
+     url.search = new URLSearchParams(searchParams).toString();
+   }
+diff --git a/apps/web/src/lib/proxyPathPrefix.ts b/apps/web/src/lib/proxyPathPrefix.ts
+new file mode 100644
+index 000000000..57a433bfc
+--- /dev/null
++++ b/apps/web/src/lib/proxyPathPrefix.ts
+@@ -0,0 +1,21 @@
++/**
++ * [t3code-vscode patch] Path-based reverse proxy support (code-server /
++ * Coder expose ports under e.g. …/proxy/3773/). Mirrors
++ * packages/client-runtime/src/proxyPathPrefix.ts for use in the web app.
++ */
++
++const PROXY_PREFIX_RE = /^(.*\/proxy\/\d+)(?:\/|$)/;
++
++export function proxyPathPrefixOf(pathname: string): string {
++  const match = pathname.match(PROXY_PREFIX_RE);
++  return match ? match[1] : "";
++}
++
++/** The proxy prefix the current page is being served under, or "". */
++export function currentProxyPathPrefix(): string {
++  return proxyPathPrefixOf(window.location.pathname);
++}
++
++export function withProxyPrefixedPath(url: URL, suffix: string): void {
++  url.pathname = proxyPathPrefixOf(url.pathname) + suffix;
++}
+diff --git a/apps/web/src/router.ts b/apps/web/src/router.ts
+index 86ba9d69a..a09372dba 100644
+--- a/apps/web/src/router.ts
++++ b/apps/web/src/router.ts
+@@ -2,11 +2,17 @@ import { createRouter, RouterHistory } from "@tanstack/react-router";
+ 
+ import { routeTree } from "./routeTree.gen";
+ 
++import { currentProxyPathPrefix } from "./lib/proxyPathPrefix.ts";
++
+ export function getRouter(history: RouterHistory) {
++  // [t3code-vscode patch] route correctly when served behind a path-based
++  // port proxy (code-server/Coder /proxy/<port>/ prefix)
++  const basepath = currentProxyPathPrefix();
+   return createRouter({
+     routeTree,
+     history,
+     context: {},
++    ...(basepath ? { basepath } : {}),
+   });
+ }
+ 
+diff --git a/apps/web/vite.config.ts b/apps/web/vite.config.ts
+index bb6347bf1..77b5102f1 100644
+--- a/apps/web/vite.config.ts
++++ b/apps/web/vite.config.ts
+@@ -89,6 +89,9 @@ const devProxyTarget = resolveDevProxyTarget(configuredWsUrl);
+ 
+ export default defineConfig(() => {
+   return {
++    // [t3code-vscode patch] relative asset URLs so the app works when served
++    // behind a path-based port proxy (resolved via the injected <base> tag)
++    base: "./",
+     plugins: [
+       tanstackRouter(),
+       react(),
+diff --git a/packages/client-runtime/src/authorization/remote.ts b/packages/client-runtime/src/authorization/remote.ts
+index 69c157d0e..5de11d483 100644
+--- a/packages/client-runtime/src/authorization/remote.ts
++++ b/packages/client-runtime/src/authorization/remote.ts
+@@ -1,3 +1,4 @@
++import { proxyPathPrefixOf, withProxyPrefixedPath } from "../proxyPathPrefix.ts";
+ import {
+   AuthAccessTokenType,
+   type AuthClientPresentationMetadata,
+@@ -185,6 +186,9 @@ export const resolveRemoteWebSocketConnectionUrl = Effect.fn(
+   const url = new URL(input.wsBaseUrl);
+   if (url.pathname === "" || url.pathname === "/") {
+     url.pathname = "/ws";
++  } else if (proxyPathPrefixOf(url.pathname) === url.pathname.replace(/\/$/, "")) {
++    // [t3code-vscode patch] base is exactly a /proxy/<port> prefix - append /ws behind it
++    withProxyPrefixedPath(url, "/ws");
+   }
+   url.searchParams.set("wsTicket", issued.ticket);
+   return url.toString();
+@@ -208,6 +212,9 @@ export const resolveRemoteDpopWebSocketConnectionUrl = Effect.fn(
+   const url = new URL(input.wsBaseUrl);
+   if (url.pathname === "" || url.pathname === "/") {
+     url.pathname = "/ws";
++  } else if (proxyPathPrefixOf(url.pathname) === url.pathname.replace(/\/$/, "")) {
++    // [t3code-vscode patch] base is exactly a /proxy/<port> prefix - append /ws behind it
++    withProxyPrefixedPath(url, "/ws");
+   }
+   url.searchParams.set("wsTicket", issued.ticket);
+   return url.toString();
+diff --git a/packages/client-runtime/src/connection/resolver.ts b/packages/client-runtime/src/connection/resolver.ts
+index c219bde09..303b77c89 100644
+--- a/packages/client-runtime/src/connection/resolver.ts
++++ b/packages/client-runtime/src/connection/resolver.ts
+@@ -1,4 +1,5 @@
+ import { RelayEnvironmentConnectScope } from "@t3tools/contracts/relay";
++import { proxyPathPrefixOf, withProxyPrefixedPath } from "../proxyPathPrefix.ts";
+ import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
+ import * as Context from "effect/Context";
+ import * as Effect from "effect/Effect";
+@@ -50,6 +51,9 @@ function primarySocketUrl(target: PrimaryConnectionTarget): string {
+   const url = new URL(target.wsBaseUrl);
+   if (url.pathname === "" || url.pathname === "/") {
+     url.pathname = "/ws";
++  } else if (proxyPathPrefixOf(url.pathname) === url.pathname.replace(/\/$/, "")) {
++    // [t3code-vscode patch] base is exactly a /proxy/<port> prefix - append /ws behind it
++    withProxyPrefixedPath(url, "/ws");
+   }
+   return url.toString();
+ }
+diff --git a/packages/client-runtime/src/environment/endpoint.ts b/packages/client-runtime/src/environment/endpoint.ts
+index 417825936..afddf4119 100644
+--- a/packages/client-runtime/src/environment/endpoint.ts
++++ b/packages/client-runtime/src/environment/endpoint.ts
+@@ -1,8 +1,11 @@
+ export * from "@t3tools/shared/advertisedEndpoint";
+ 
++import { withProxyPrefixedPath } from "../proxyPathPrefix.ts";
++
+ export const environmentEndpointUrl = (httpBaseUrl: string, pathname: string): string => {
+   const url = new URL(httpBaseUrl);
+-  url.pathname = pathname;
++  // [t3code-vscode patch] keep a /proxy/<port> path prefix if present
++  withProxyPrefixedPath(url, pathname);
+   url.search = "";
+   url.hash = "";
+   return url.toString();
+diff --git a/packages/client-runtime/src/proxyPathPrefix.ts b/packages/client-runtime/src/proxyPathPrefix.ts
+new file mode 100644
+index 000000000..6af9e1c94
+--- /dev/null
++++ b/packages/client-runtime/src/proxyPathPrefix.ts
+@@ -0,0 +1,22 @@
++/**
++ * [t3code-vscode patch] Support for path-based reverse proxies.
++ *
++ * Environments like code-server and Coder expose ports under a path prefix
++ * (e.g. /@user/workspace.agent/apps/code-server/proxy/3773/). The stock
++ * client assumes the server lives at an origin root; these helpers detect a
++ * /proxy/<port> prefix in a URL path so request builders can preserve it.
++ * URLs without such a prefix behave exactly as before.
++ */
++
++const PROXY_PREFIX_RE = /^(.*\/proxy\/\d+)(?:\/|$)/;
++
++/** Extract the /…/proxy/<port> prefix from a URL path, or "" if none. */
++export function proxyPathPrefixOf(pathname: string): string {
++  const match = pathname.match(PROXY_PREFIX_RE);
++  return match ? match[1] : "";
++}
++
++/** Append `suffix` (which must start with "/") after any proxy prefix in `url`. */
++export function withProxyPrefixedPath(url: URL, suffix: string): void {
++  url.pathname = proxyPathPrefixOf(url.pathname) + suffix;
++}
+diff --git a/packages/client-runtime/src/rpc/http.ts b/packages/client-runtime/src/rpc/http.ts
+index 874959185..837e236b6 100644
+--- a/packages/client-runtime/src/rpc/http.ts
++++ b/packages/client-runtime/src/rpc/http.ts
+@@ -9,6 +9,8 @@ import {
+   type EnvironmentScopeRequiredError,
+ } from "@t3tools/contracts";
+ import { httpHeaderRedactionLayer } from "@t3tools/shared/httpObservability";
++
++import { withProxyPrefixedPath } from "../proxyPathPrefix.ts";
+ import * as Data from "effect/Data";
+ import * as Duration from "effect/Duration";
+ import * as Effect from "effect/Effect";
+@@ -88,7 +90,8 @@ export const remoteHttpClientLayer = (
+ 
+ const remoteApiBaseUrl = (httpBaseUrl: string): string => {
+   const url = new URL(httpBaseUrl);
+-  url.pathname = "/";
++  // [t3code-vscode patch] keep a /proxy/<port> path prefix if present
++  withProxyPrefixedPath(url, "/");
+   url.search = "";
+   url.hash = "";
+   return url.toString();

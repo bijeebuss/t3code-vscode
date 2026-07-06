@@ -1,4 +1,5 @@
 import { RelayEnvironmentConnectScope } from "@t3tools/contracts/relay";
+import { proxyPathPrefixOf, withProxyPrefixedPath } from "../proxyPathPrefix.ts";
 import { withRelayClientTracing } from "@t3tools/shared/relayTracing";
 import * as Context from "effect/Context";
 import * as Effect from "effect/Effect";
@@ -50,6 +51,9 @@ function primarySocketUrl(target: PrimaryConnectionTarget): string {
   const url = new URL(target.wsBaseUrl);
   if (url.pathname === "" || url.pathname === "/") {
     url.pathname = "/ws";
+  } else if (proxyPathPrefixOf(url.pathname) === url.pathname.replace(/\/$/, "")) {
+    // [t3code-vscode patch] base is exactly a /proxy/<port> prefix - append /ws behind it
+    withProxyPrefixedPath(url, "/ws");
   }
   return url.toString();
 }

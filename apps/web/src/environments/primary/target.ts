@@ -1,6 +1,8 @@
 import { PRIMARY_LOCAL_ENVIRONMENT_ID, type DesktopEnvironmentBootstrap } from "@t3tools/contracts";
 import * as Schema from "effect/Schema";
 
+import { currentProxyPathPrefix, withProxyPrefixedPath } from "../../lib/proxyPathPrefix.ts";
+
 const PrimaryEnvironmentTargetSource = Schema.Literals([
   "configured",
   "window-origin",
@@ -211,7 +213,9 @@ function resolveConfiguredPrimaryTarget(): PrimaryEnvironmentTarget | null {
 
 function resolveWindowOriginPrimaryTarget(): PrimaryEnvironmentTarget {
   const url = parseTargetUrl({
-    rawValue: window.location.origin,
+    // [t3code-vscode patch] behind a path-based port proxy the server lives
+    // under a /proxy/<port> prefix, not at the origin root
+    rawValue: window.location.origin + currentProxyPathPrefix(),
     source: "window-origin",
     urlKind: "http-base-url",
   });
@@ -278,7 +282,8 @@ export function resolvePrimaryEnvironmentHttpUrl(
     source: primaryTarget.source,
     urlKind: "http-base-url",
   });
-  url.pathname = pathname;
+  // [t3code-vscode patch] keep a /proxy/<port> path prefix if present
+  withProxyPrefixedPath(url, pathname);
   if (searchParams) {
     url.search = new URLSearchParams(searchParams).toString();
   }
