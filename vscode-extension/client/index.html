@@ -7,7 +7,7 @@
       // (code-server/Coder /proxy/<port>/), anchor relative URLs to the
       // proxy prefix so assets resolve on any route.
       (() => {
-        const match = window.location.pathname.match(/^(.*\/proxy\/\d+)(?:\/|$)/);
+        const match = window.location.pathname.match(/^(.*\/(?:proxy\/\d+|apps\/[^\/]+))(?:\/|$)/);
         if (match) {
           const base = document.createElement("base");
           base.href = window.location.origin + match[1] + "/";
@@ -98,8 +98,8 @@
       }
     </style>
     <title>T3 Code (Alpha)</title>
-    <script type="module" crossorigin src="./assets/index-B34cBmR6.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/textarea-BPFnAWx8.js">
+    <script type="module" crossorigin src="./assets/index-Cd_IYI1x.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/textarea-Blwgl7cE.js">
     <link rel="stylesheet" crossorigin href="./assets/index-BGd3rVP_.css">
   </head>
   <body>

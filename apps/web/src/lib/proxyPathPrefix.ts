@@ -4,7 +4,7 @@
  * packages/client-runtime/src/proxyPathPrefix.ts for use in the web app.
  */
 
-const PROXY_PREFIX_RE = /^(.*\/proxy\/\d+)(?:\/|$)/;
+const PROXY_PREFIX_RE = /^(.*\/(?:proxy\/\d+|apps\/[^\/]+))(?:\/|$)/;
 
 export function proxyPathPrefixOf(pathname: string): string {
   const match = pathname.match(PROXY_PREFIX_RE);

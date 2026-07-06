@@ -1,12 +1,12 @@
 {
   "name": "t3code-vscode",
   "displayName": "T3 Code",
-  "description": "Run T3 Code (pingdotgg/t3code) — a GUI for coding agents (Claude Code, Codex, Cursor, OpenCode) — inside VS Code.",
-  "version": "0.2.1",
+  "description": "Run T3 Code (pingdotgg/t3code) \u2014 a GUI for coding agents (Claude Code, Codex, Cursor, OpenCode) \u2014 inside VS Code.",
+  "version": "0.2.2",
   "publisher": "t3code-community",
   "license": "MIT",
   "engines": {
-    "vscode": "^1.85.0"  
+    "vscode": "^1.85.0"
   },
   "categories": [
     "AI",
@@ -52,7 +52,10 @@
         },
         "t3code.accessMode": {
           "type": "string",
-          "enum": ["auto", "localhost"],
+          "enum": [
+            "auto",
+            "localhost"
+          ],
           "default": "auto",
           "enumDescriptions": [
             "Route through VS Code's port forwarding (asExternalUri). Falls back to guidance if the environment uses a path-based proxy that breaks the t3 UI.",

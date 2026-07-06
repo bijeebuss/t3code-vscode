@@ -4,11 +4,11 @@
  * Environments like code-server and Coder expose ports under a path prefix
  * (e.g. /@user/workspace.agent/apps/code-server/proxy/3773/). The stock
  * client assumes the server lives at an origin root; these helpers detect a
- * /proxy/<port> prefix in a URL path so request builders can preserve it.
+ * /proxy/<port> prefix in a URL path so request builders can preserve it. Also matches Coder workspace-app paths (/apps/<slug>/).
  * URLs without such a prefix behave exactly as before.
  */
 
-const PROXY_PREFIX_RE = /^(.*\/proxy\/\d+)(?:\/|$)/;
+const PROXY_PREFIX_RE = /^(.*\/(?:proxy\/\d+|apps\/[^\/]+))(?:\/|$)/;
 
 /** Extract the /…/proxy/<port> prefix from a URL path, or "" if none. */
 export function proxyPathPrefixOf(pathname: string): string {
